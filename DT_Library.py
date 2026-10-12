@@ -198,6 +198,7 @@ class DecisionTree:
         right = self._build_tree(X_right, y_right, depth + 1)
 
         # 6. Create the current internal node.
+        classes = self.classes_ if self.classes_ is not None else np.unique(y)
         node = Node(
             feature_index=best_feature,
             threshold=best_threshold,
@@ -205,7 +206,7 @@ class DecisionTree:
             right=right,
             samples=len(y),
             impurity=self._calculate_impurity(y),
-            class_counts=np.array([np.sum(y == c) for c in self.classes_])
+            class_counts=np.array([np.sum(y == c) for c in classes])
         )
                     
         return node
@@ -315,8 +316,14 @@ class DecisionTree:
         """
         Create a leaf node using the target labels of the current node.
         """        
-        class_counts = np.array([np.sum(y == c) for c in self.classes_])
-        predicted_class = self.classes_[np.argmax(class_counts)]
+        classes = self.classes_ if self.classes_ is not None else np.unique(y)
+        
+        if len(y) == 0:
+            predicted_class = classes[0] if len(classes) > 0 else None
+            class_counts = np.zeros(len(classes), dtype=int)
+        else:
+            class_counts = np.array([np.sum(y == c) for c in classes])
+            predicted_class = classes[np.argmax(class_counts)]
         
         leaf_node = Node(
             value=predicted_class,

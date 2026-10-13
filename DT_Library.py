@@ -171,6 +171,8 @@ class DecisionTree:
         
         self.root_ = self._build_tree(X, y, depth=0)
         
+        self._compute_tree_stats()
+        
         return self
         
 
@@ -240,6 +242,9 @@ class DecisionTree:
                     best_feature = feature_index
                     best_threshold = threshold
         
+        if best_feature is None:
+            return None
+        
         return best_feature, best_threshold
             
 
@@ -283,16 +288,17 @@ class DecisionTree:
         """
         Calculate the information gain produced by a split.
         """
+        n_total = len(parent_y)
+        
+        if n_total == 0:
+            return 0.0
+        
         parent_impurity = self._calculate_impurity(parent_y)
-        criterion = self.criterion.lower()
+        left_impurity = self._calculate_impurity(left_y)
+        right_impurity = self._calculate_impurity(right_y)
         
-        if criterion == "entropy":
-            weighted_child_impurity = self._weighted_entropy(left_y, right_y)
-        elif criterion == "gini":   
-            weighted_child_impurity = self._weighted_gini(left_y, right_y)
-        else:
-            raise ValueError(f"Unknown criterion: {self.criterion}")
-        
+        weighted_child_impurity = (len(left_y) / n_total) * left_impurity + (len(right_y) / n_total) * right_impurity
+                                  
         information_gain = parent_impurity - weighted_child_impurity
         
         return information_gain
@@ -361,3 +367,45 @@ class DecisionTree:
         predictions = np.array([self._predict_one(x) for x in X])
         
         return predictions
+
+
+    def _compute_tree_stats(self):
+        """
+        Traverse the tree to compute n_nodes_, depth_, and feature_importances_.
+        """
+        if self.root_ is None:
+            self.n_nodes_ = 0
+            self.depth_ = 0
+            self.feature_importances_ = np.zeros(self.n_features_)
+            
+            return
+        
+        total_samples = self.root_.samples
+        
+        importances = np.zeros(self.n_features_)
+        n_nodes = 0
+        max_depth = 0
+
+        stack = [(self.root_, 0)]  # Stack of (node, depth) tuples
+        while stack:
+            node, depth = stack.pop()
+            n_nodes += 1
+            max_depth = max(max_depth, depth)
+
+            if node.is_leaf():
+                continue
+            
+            importance = node.impurity - (node.left.impurity * node.left.samples + node.right.impurity * node.right.samples) / node.samples
+            importances[node.feature_index] += importance * node.samples / total_samples
+            
+            stack.append((node.left, depth + 1))
+            stack.append((node.right, depth + 1))
+
+        self.n_nodes_ = n_nodes
+        self.depth_ = max_depth
+        imp_sum = np.sum(importances)
+        
+        if imp_sum > 0:
+            self.feature_importances_ = importances / imp_sum
+        else:
+            self.feature_importances_ = importances

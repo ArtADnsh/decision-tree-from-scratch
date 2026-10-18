@@ -185,10 +185,10 @@ class DecisionTree:
             return self._create_leaf(y)
 
         # 2. Find the best feature and threshold.
-        best_feature, best_threshold = self._find_best_split(X, y)
-        
-        if best_feature is None:
+        split_res = self._find_best_split(X, y)
+        if split_res is None or split_res[0] is None:
             return self._create_leaf(y)
+        best_feature, best_threshold = split_res
         
         # 3. Split the dataset using the selected feature and threshold.        
         X_left, y_left, X_right, y_right = self._split(X, y, best_feature, best_threshold)
